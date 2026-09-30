@@ -1,11 +1,8 @@
 package aubymori.oldverticalbobbing.mixin;
 
-import aubymori.oldverticalbobbing.OldVerticalBobbing;
 import net.minecraft.client.Camera;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import org.joml.Matrix4fc;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -34,28 +31,29 @@ public abstract class GameRendererMixin {
         method = "renderLevel",
         at = @At("HEAD")
     )
-    private void onRenderLevel(DeltaTracker deltaTracker, CallbackInfo ci) {
+    private void onRenderLevel(CallbackInfo ci) {
         if (this.gameRenderState.levelRenderState.cameraRenderState.entityRenderState.isPlayer) {
-            this.partialTick = this.mainCamera.getCameraEntityPartialTicks(deltaTracker);
+            this.partialTick = this.gameRenderState.levelRenderState.cameraRenderState.cameraEntityPartialTicks;
         }
     }
 
     @Inject(
         method = "bobView",
         at = @At(
-            ordinal = 1,
-            shift = At.Shift.AFTER,
             value = "INVOKE",
-            target = "Lcom/mojang/blaze3d/vertex/PoseStack;mulPose(Lorg/joml/Quaternionfc;)V"
+            target = "Lcom/mojang/blaze3d/vertex/PoseStack;rotateDegrees(Lcom/mojang/math/Axis;F)V",
+            ordinal = 1,
+            shift = At.Shift.AFTER
         )
     )
     private void onBobView(CameraRenderState cameraState, PoseStack poseStack, CallbackInfo callback) {
         if (cameraState.entityRenderState.isPlayer) {
             Player player = (Player)this.minecraft.getCameraEntity();
             CameraPitching cameraPitching = (CameraPitching)player;
+            assert cameraPitching != null;
             float pitch = Mth.lerp(this.partialTick, cameraPitching.getPrevCameraPitch(), cameraPitching.getCameraPitch());
 
-            poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
+            poseStack.rotateDegrees(Axis.XP, pitch);
         }
     }
 }
